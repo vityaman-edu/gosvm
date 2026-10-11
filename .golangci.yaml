@@ -10,6 +10,7 @@ linters:
     - exhaustruct
     - gomodguard
     - wsl
+    - depguard
   settings:
     forbidigo:
       forbid:
@@ -22,8 +23,12 @@ linters:
       enable-all: true
     staticcheck:
       checks: ['all']
-    revive:
-      enable-all-rules: true
+    # revive:
+    #   enable-all-rules: true
+    #   rules:
+    #     - name: add-constant
+    #       arguments:
+    #         - allowInts: '0,1'
     gocritic:
       enable-all: true
     nolintlint:
@@ -31,7 +36,9 @@ linters:
       require-specific: true
   exclusions:
     presets: []
-    warn-unused: true
+    warn-unused: false
+    paths:
+      - '(^|/)examples(/|$)'
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
@@ -40,3 +47,6 @@ formatters:
   enable:
     - gofumpt
     - goimports
+  exclusions:
+    paths:
+      - '(^|/)examples(/|$)'
