@@ -28,6 +28,10 @@ pre-commit install
 pre-commit run --all-files
 ```
 
+## Learning
+
+See the [course/README.md](course/README.md).
+
 ## References
 
 - <https://github.com/CaelmBleidd/symbolic_execution_2026>
