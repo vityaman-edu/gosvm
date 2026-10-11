@@ -1,0 +1,73 @@
+---
+name: Precommit
+
+'on':
+  push:
+    branches:
+      - trunk
+  pull_request:
+    branches:
+      - trunk
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Nix Install
+        uses: cachix/install-nix-action@v31.11.1
+
+      - name: Nix Cache
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+
+      - name: Go Cache
+        uses: actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('flake.lock', 'go.mod', 'go.sum') }}
+          restore-keys: |
+            go-${{ runner.os }}-
+
+      - name: Nix Download
+        run: nix develop --command echo OK
+
+      - name: Markdown Lint
+        run: nix develop --command pre-commit run markdown --all-files
+
+      - name: YAML Lint
+        run: nix develop --command pre-commit run yaml --all-files
+
+      - name: Shell Lint
+        run: nix develop --command pre-commit run shell --all-files
+
+      - name: Nix Lint
+        run: nix develop --command pre-commit run nix --all-files
+
+      - name: Go Lint
+        run: nix develop --command pre-commit run go --all-files
+
+      - name: Go Build
+        run: nix develop --command pre-commit run go-build --all-files
+
+      - name: Go Test
+        run: nix develop --command pre-commit run go-test --all-files
+
+      - name: Go Scan
+        run: nix develop --command pre-commit run go-scan --all-files

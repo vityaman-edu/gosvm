@@ -1,0 +1,9 @@
+---
+config:
+  default: true
+  MD013:
+    line_length: 1000
+  MD024:
+    siblings_only: false
+  MD033: true
+  MD041: true
