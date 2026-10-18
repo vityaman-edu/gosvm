@@ -1,4 +1,3 @@
-// Package gossa builds and prints Go static single assignment (SSA) packages.
 package gossa
 
 import (
@@ -14,7 +13,6 @@ import (
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
-// BuildSSA parses and type-checks a source file, then builds its SSA package.
 func BuildSSA(source srcloc.Source) (*ssa.Package, error) {
 	fileSet := token.NewFileSet()
 

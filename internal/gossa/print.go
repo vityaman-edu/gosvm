@@ -8,7 +8,6 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-// PrintSSA writes the package and its function bodies in name order.
 func PrintSSA(output io.Writer, pkg *ssa.Package) error {
 	_, err := pkg.WriteTo(output)
 	if err != nil {

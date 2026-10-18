@@ -1,7 +1,5 @@
-// Простые тестовые функции для построения SSA
 package main
 
-// Функция с простым условным оператором
 func simpleIf(x int) int {
 	if x > 0 {
 		return x * 2
@@ -9,18 +7,16 @@ func simpleIf(x int) int {
 	return 0
 }
 
-// Функция с if-else
 func ifElse(x int) int {
 	if x > 0 {
 		return x * 2
 	} else {
 		return x * -1
 	}
-	// Недостижимый код
+
 	return 999
 }
 
-// Функция с вложенными условиями
 func nestedIf(x, y int) int {
 	if x > 0 {
 		if y > 0 {
@@ -31,7 +27,6 @@ func nestedIf(x, y int) int {
 	return 0
 }
 
-// Функция с простым циклом
 func simpleLoop(n int) int {
 	sum := 0
 	for i := 0; i < n; i++ {
@@ -40,7 +35,6 @@ func simpleLoop(n int) int {
 	return sum
 }
 
-// Функция с while-циклом
 func whileLoop(x int) int {
 	for x > 0 {
 		x = x - 1
@@ -48,7 +42,6 @@ func whileLoop(x int) int {
 	return x
 }
 
-// Функция с вложенными циклами
 func nestedLoops(n, m int) int {
 	sum := 0
 	for i := 0; i < n; i++ {
@@ -59,7 +52,6 @@ func nestedLoops(n, m int) int {
 	return sum
 }
 
-// Функция с break и continue
 func loopWithBreakContinue(arr []int) int {
 	sum := 0
 	for i, val := range arr {
@@ -74,7 +66,6 @@ func loopWithBreakContinue(arr []int) int {
 	return sum
 }
 
-// Функция с switch-case
 func switchExample(x int) string {
 	switch x {
 	case 0:
@@ -88,7 +79,6 @@ func switchExample(x int) string {
 	}
 }
 
-// Функция с множественными return'ами
 func multipleReturns(x, y int) int {
 	if x > y {
 		return x
@@ -102,7 +92,6 @@ func multipleReturns(x, y int) int {
 	return 0
 }
 
-// Функция с panic
 func withPanic(x int) int {
 	if x < 0 {
 		panic("negative value")
@@ -113,7 +102,6 @@ func withPanic(x int) int {
 	return x * x
 }
 
-// Рекурсивная функция
 func factorial(n int) int {
 	if n <= 1 {
 		return 1
@@ -121,7 +109,6 @@ func factorial(n int) int {
 	return n * factorial(n-1)
 }
 
-// Функция с goto (сложный CFG)
 func withGoto(x int) int {
 	if x > 10 {
 		goto big
@@ -136,10 +123,9 @@ end:
 	return x
 }
 
-// Функция с defer (влияет на CFG)
 func withDefer(x int) int {
 	defer func() {
-		// cleanup code
+
 	}()
 
 	if x < 0 {
@@ -148,12 +134,10 @@ func withDefer(x int) int {
 	return x * 2
 }
 
-// Функция с комплексными булевыми выражениями
 func complexConditions(x, y, z int) bool {
 	return (x > 0 && y > 0) || (z > 0 && x+y > z)
 }
 
 func main() {
-	// Функции для тестирования - не вызываются
-	// Используются только для анализа CFG
+
 }

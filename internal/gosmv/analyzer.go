@@ -1,4 +1,3 @@
-// Package gosmv provides the entry point for GoSVM program analysis.
 package gosmv
 
 import (
@@ -10,15 +9,12 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-// ErrFunctionNotFound indicates that the selected function is absent.
 var ErrFunctionNotFound = errors.New("function not found")
 
-// Analysis contains the SSA package used for subsequent program analysis.
 type Analysis struct {
 	Package *ssa.Package
 }
 
-// Analyze builds the source's SSA and validates the selected function.
 func Analyze(
 	source srcloc.Source, function srcloc.FunctionName,
 ) (Analysis, error) {

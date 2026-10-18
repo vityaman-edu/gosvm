@@ -13,3 +13,5 @@
 
 4. Do not implement everything by you own. Work with a human in
    a lockstep.
+
+5. Prefer native Zed editor tools over shell commands.

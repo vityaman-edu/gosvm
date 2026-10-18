@@ -42,6 +42,7 @@
               shfmt
               statix
               yamllint
+              z3
             ];
           };
         }

@@ -55,7 +55,6 @@ func parseArgs(arguments []string) (args, error) {
 	return assignPositionals(options, flags, groups.positional)
 }
 
-// Separate flags from positionals: flag.Parse stops at the first positional.
 func splitArguments(arguments []string) argumentGroups {
 	var groups argumentGroups
 
