@@ -22,10 +22,16 @@ Install precommit hooks.
 pre-commit install
 ```
 
-## Build & Test
+## Test
 
 ```sh
 pre-commit run --all-files
+```
+
+## Build
+
+```sh
+go build -o ./gosvm ./cmd/gosvm
 ```
 
 ## Learning
