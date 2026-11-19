@@ -7,8 +7,8 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-func (p Package) WriteTo(w io.Writer) (int64, error) {
-	var n int64
+func (p Package) WriteTo(writer io.Writer) (int64, error) {
+	var size int64
 
 	for _, m := range p.Go.Members {
 		f, ok := m.(*ssa.Function)
@@ -16,15 +16,15 @@ func (p Package) WriteTo(w io.Writer) (int64, error) {
 			continue
 		}
 
-		n1, err := Function{f}.WriteTo(w)
+		n, err := Function{f}.WriteTo(writer)
 		if err != nil {
-			return n, err
+			return size, err
 		}
 
-		n += n1
+		size += n
 	}
 
-	return n, nil
+	return size, nil
 }
 
 func (f Function) WriteTo(w io.Writer) (int64, error) {
