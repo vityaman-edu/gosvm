@@ -13,7 +13,8 @@ import (
 )
 
 type Package struct {
-	Go *ssa.Package
+	Go      *ssa.Package
+	FileSet *token.FileSet
 }
 
 type Function struct {
@@ -33,6 +34,15 @@ func (p Package) Functions() []Function {
 	}
 
 	return functions
+}
+
+func (p Package) Function(name string) (Function, error) {
+	f, ok := p.Go.Members[name].(*ssa.Function)
+	if !ok {
+		return Function{}, Errorf("function '%s' not found", token.NoPos, name)
+	}
+
+	return Function{f}, nil
 }
 
 func (f Function) Entry() *ssa.BasicBlock {
@@ -71,5 +81,8 @@ func ParseToSSA(text string) Package {
 		panic(fmt.Errorf("build package: %w", err))
 	}
 
-	return Package{ssaPkg}
+	return Package{
+		Go:      ssaPkg,
+		FileSet: fileSet,
+	}
 }

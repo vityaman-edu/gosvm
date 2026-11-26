@@ -1,9 +1,23 @@
 package gosmt
 
-import "github.com/ebukreev/go-z3/z3"
+import (
+	"github.com/ebukreev/go-z3/z3"
+	"golang.org/x/tools/go/ssa"
+)
 
 type Z3 struct {
-	Ctx    *z3.Context
-	Config *z3.Config
-	Vars   map[string]z3.Value
+	ctx    *z3.Context
+	config *z3.Config
+}
+
+type Symbols = map[ssa.Value]z3.Value
+
+func NewZ3() *Z3 {
+	config := &z3.Config{}
+	ctx := z3.NewContext(config)
+
+	return &Z3{
+		ctx:    ctx,
+		config: config,
+	}
 }
