@@ -13,7 +13,7 @@ type loopInput struct {
 }
 
 func loop(input loopInput) error {
-	const limit = 1000
+	const limit = 128
 
 	start := newInterpreter(interpreterArgs{
 		entry:    input.Function.Entry(),

@@ -107,7 +107,7 @@ func (interp interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int) erro
 		return fmt.Errorf("translate phi operand: %w", err)
 	}
 
-	frame.locals[target] = value
+	interp.store(target, value)
 
 	return nil
 }
@@ -335,10 +335,7 @@ func (interp interpreter) interpretValue(instruction ssa.Value) error {
 		return err
 	}
 
-	locals := interp.frame().locals
-	locals[instruction] = value
-
-	interp.logf("SMT: %s <- %s", instruction.Name(), value.String())
+	interp.store(instruction, value)
 
 	return nil
 }
@@ -352,6 +349,13 @@ func (interp interpreter) translateValue(instruction ssa.Value) (z3.Value, error
 	}
 
 	return value, nil
+}
+
+func (interp interpreter) store(ssaV ssa.Value, z3V z3.Value) {
+	locals := interp.frame().locals
+	z3V = interp.z3.Simplify(z3V)
+	locals[ssaV] = z3V
+	interp.logf("SMT: %s <- %s", ssaV.Name(), z3V.String())
 }
 
 func (interp interpreter) interpretIf(instruction *ssa.If) ([]interpreter, error) {
@@ -378,8 +382,13 @@ func (interp interpreter) interpretIf(instruction *ssa.If) ([]interpreter, error
 	return []interpreter{brThen, brElse}, nil
 }
 
-func (interp interpreter) interpretJump(instruction *ssa.Jump) ([]interpreter, error) {
-	return nil, gossa.Errorf("Jump is not supported", instruction.Pos())
+func (interp interpreter) interpretJump(_ *ssa.Jump) ([]interpreter, error) {
+	succs := interp.block.this.Succs
+
+	then := interp.clone()
+	then.block = blockEntry{pred: then.block.this, this: succs[0]}
+
+	return []interpreter{then}, nil
 }
 
 func (interp interpreter) interpretPanic(instruction *ssa.Panic) ([]interpreter, error) {

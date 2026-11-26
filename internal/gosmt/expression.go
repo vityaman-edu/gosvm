@@ -12,10 +12,6 @@ import (
 
 //nolint:cyclop,gocyclo,funlen // Each SSA value type dispatches to its own handler.
 func (z *Z3) TranslateValue(value ssa.Value, symbols Symbols) (z3.Value, error) {
-	if cached, ok := symbols[value]; ok {
-		return cached, nil
-	}
-
 	switch value := value.(type) {
 	case *ssa.Alloc:
 		return z.translateAlloc(value, symbols)
@@ -337,6 +333,10 @@ func (z *Z3) translateNext(v *ssa.Next, _ Symbols) (z3.Value, error) {
 }
 
 func (z *Z3) translateParameter(parameter *ssa.Parameter, symbols Symbols) (z3.Value, error) {
+	if cached, ok := symbols[parameter]; ok {
+		return cached, nil
+	}
+
 	basic, ok := parameter.Type().Underlying().(*types.Basic)
 	if !ok {
 		return nil, gossa.Errorf("Parameter type is not supported", parameter.Pos())
@@ -359,8 +359,12 @@ func (z *Z3) translateParameter(parameter *ssa.Parameter, symbols Symbols) (z3.V
 	return x, nil
 }
 
-func (z *Z3) translatePhi(v *ssa.Phi, _ Symbols) (z3.Value, error) {
-	return nil, gossa.Errorf("Phi is not supported", v.Pos())
+func (z *Z3) translatePhi(v *ssa.Phi, symbols Symbols) (z3.Value, error) {
+	if cached, ok := symbols[v]; ok {
+		return cached, nil
+	}
+
+	return nil, gossa.Errorf("Phi is unresolved", v.Pos())
 }
 
 func (z *Z3) translateRange(v *ssa.Range, _ Symbols) (z3.Value, error) {
