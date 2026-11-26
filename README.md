@@ -1,14 +1,14 @@
 # GoSVM
 
-Yet Another Go Symbolic Virtual Machine based on Alexey Menshutin course.
+<!-- markdownlint-disable MD033 -->
+<img src="./docs/asset/mascot.png" alt="Mascot" width="600">
+<!-- markdownlint-restore -->
 
 > Time forks perpetually toward innumerable futures.
 >
 > -- Jorge Luis Borges, The Garden of Forking Paths (1941)
 
-<!-- markdownlint-disable MD033 -->
-<img src="./docs/asset/mascot.png" alt="Mascot" width="600">
-<!-- markdownlint-restore -->
+Yet Another Go Symbolic Virtual Machine based on Alexey Menshutin course.
 
 ## Prepare
 
