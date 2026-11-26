@@ -34,6 +34,16 @@ pre-commit run --all-files
 go build -o ./gosvm ./cmd/gosvm
 ```
 
+## Run
+
+```sh
+# Dry run
+./gosvm -function simpleLoop < internal/examples/test_functions.go
+
+# See interpretation
+./gosvm -function simpleLoop -print-smt < internal/examples/test_functions.go
+```
+
 ## Learning
 
 See the [course/README.md](course/README.md).
