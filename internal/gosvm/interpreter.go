@@ -2,6 +2,7 @@ package gosvm
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 
 	"github.com/ebukreev/go-z3/z3"
@@ -11,8 +12,8 @@ import (
 )
 
 type interpreter struct {
-	entry    blockEntry
-	path     z3.Value
+	block    blockEntry
+	path     z3.Bool
 	z3       *gosmt.Z3
 	stack    []frame
 	printSMT bool
@@ -26,7 +27,7 @@ type interpreterArgs struct {
 
 type blockEntry struct {
 	pred *ssa.BasicBlock
-	next *ssa.BasicBlock
+	this *ssa.BasicBlock
 }
 
 type frame struct {
@@ -35,7 +36,7 @@ type frame struct {
 
 func newInterpreter(args interpreterArgs) interpreter {
 	return interpreter{
-		entry:    blockEntry{pred: nil, next: args.entry},
+		block:    blockEntry{pred: nil, this: args.entry},
 		path:     args.z3.Bool(true),
 		z3:       args.z3,
 		stack:    []frame{{locals: make(map[ssa.Value]z3.Value)}},
@@ -43,13 +44,24 @@ func newInterpreter(args interpreterArgs) interpreter {
 	}
 }
 
-func (interpreter interpreter) frame() *frame {
-	return &interpreter.stack[len(interpreter.stack)-1]
+func (interp interpreter) frame() *frame {
+	return &interp.stack[len(interp.stack)-1]
 }
 
-func (interpreter interpreter) interpret() ([]interpreter, error) {
-	block := interpreter.entry.next
-	edgeIndex := slices.Index(block.Preds, interpreter.entry.pred)
+func (interp interpreter) clone() interpreter {
+	dst := interp
+
+	dst.stack = slices.Clone(interp.stack)
+	for i := range dst.stack {
+		dst.stack[i].locals = maps.Clone(interp.stack[i].locals)
+	}
+
+	return dst
+}
+
+func (interp interpreter) interpret() ([]interpreter, error) {
+	block := interp.block.this
+	edgeIndex := slices.Index(block.Preds, interp.block.pred)
 
 	last := len(block.Instrs) - 1
 	body := block.Instrs[:last]
@@ -62,29 +74,29 @@ func (interpreter interpreter) interpret() ([]interpreter, error) {
 				return nil, gossa.Errorf("expected edgeIndex for Phi, got none", instr.Pos())
 			}
 
-			err := interpreter.interpretPhi(instr, edgeIndex)
+			err := interp.interpretPhi(instr, edgeIndex)
 			if err != nil {
 				return nil, err
 			}
 
 		default:
-			err := interpreter.interpretBody(instr)
+			err := interp.interpretBody(instr)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return interpreter.interpretTerminator(terminator)
+	return interp.interpretTerminator(terminator)
 }
 
-func (interpreter interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int) error {
+func (interp interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int) error {
 	target := instruction
 	source := instruction.Edges[edgeIndex]
 
-	frame := interpreter.frame()
+	frame := interp.frame()
 
-	value, err := interpreter.z3.TranslateValue(source, frame.locals)
+	value, err := interp.z3.TranslateValue(source, frame.locals)
 	if err != nil {
 		return fmt.Errorf("translate phi operand: %w", err)
 	}
@@ -95,232 +107,275 @@ func (interpreter interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int)
 }
 
 //nolint:cyclop,gocyclo,funlen // Each SSA instruction type dispatches to its own handler.
-func (interpreter interpreter) interpretBody(instruction ssa.Instruction) error {
+func (interp interpreter) interpretBody(instruction ssa.Instruction) error {
 	switch instruction := instruction.(type) {
 	case *ssa.Alloc:
-		return interpreter.interpretAlloc(instruction)
+		return interp.interpretAlloc(instruction)
 	case *ssa.BinOp:
-		return interpreter.interpretBinOp(instruction)
+		return interp.interpretBinOp(instruction)
 	case *ssa.Call:
-		return interpreter.interpretCall(instruction)
+		return interp.interpretCall(instruction)
 	case *ssa.ChangeInterface:
-		return interpreter.interpretChangeInterface(instruction)
+		return interp.interpretChangeInterface(instruction)
 	case *ssa.ChangeType:
-		return interpreter.interpretChangeType(instruction)
+		return interp.interpretChangeType(instruction)
 	case *ssa.Convert:
-		return interpreter.interpretConvert(instruction)
+		return interp.interpretConvert(instruction)
 	case *ssa.DebugRef:
-		return interpreter.interpretDebugRef(instruction)
+		return interp.interpretDebugRef(instruction)
 	case *ssa.Defer:
-		return interpreter.interpretDefer(instruction)
+		return interp.interpretDefer(instruction)
 	case *ssa.Extract:
-		return interpreter.interpretExtract(instruction)
+		return interp.interpretExtract(instruction)
 	case *ssa.Field:
-		return interpreter.interpretField(instruction)
+		return interp.interpretField(instruction)
 	case *ssa.FieldAddr:
-		return interpreter.interpretFieldAddr(instruction)
+		return interp.interpretFieldAddr(instruction)
 	case *ssa.Go:
-		return interpreter.interpretGo(instruction)
+		return interp.interpretGo(instruction)
 	case *ssa.Index:
-		return interpreter.interpretIndex(instruction)
+		return interp.interpretIndex(instruction)
 	case *ssa.IndexAddr:
-		return interpreter.interpretIndexAddr(instruction)
+		return interp.interpretIndexAddr(instruction)
 	case *ssa.Lookup:
-		return interpreter.interpretLookup(instruction)
+		return interp.interpretLookup(instruction)
 	case *ssa.MakeChan:
-		return interpreter.interpretMakeChan(instruction)
+		return interp.interpretMakeChan(instruction)
 	case *ssa.MakeClosure:
-		return interpreter.interpretMakeClosure(instruction)
+		return interp.interpretMakeClosure(instruction)
 	case *ssa.MakeInterface:
-		return interpreter.interpretMakeInterface(instruction)
+		return interp.interpretMakeInterface(instruction)
 	case *ssa.MakeMap:
-		return interpreter.interpretMakeMap(instruction)
+		return interp.interpretMakeMap(instruction)
 	case *ssa.MakeSlice:
-		return interpreter.interpretMakeSlice(instruction)
+		return interp.interpretMakeSlice(instruction)
 	case *ssa.MapUpdate:
-		return interpreter.interpretMapUpdate(instruction)
+		return interp.interpretMapUpdate(instruction)
 	case *ssa.MultiConvert:
-		return interpreter.interpretMultiConvert(instruction)
+		return interp.interpretMultiConvert(instruction)
 	case *ssa.Next:
-		return interpreter.interpretNext(instruction)
+		return interp.interpretNext(instruction)
 	case *ssa.Range:
-		return interpreter.interpretRange(instruction)
+		return interp.interpretRange(instruction)
 	case *ssa.RunDefers:
-		return interpreter.interpretRunDefers(instruction)
+		return interp.interpretRunDefers(instruction)
 	case *ssa.Select:
-		return interpreter.interpretSelect(instruction)
+		return interp.interpretSelect(instruction)
 	case *ssa.Send:
-		return interpreter.interpretSend(instruction)
+		return interp.interpretSend(instruction)
 	case *ssa.Slice:
-		return interpreter.interpretSlice(instruction)
+		return interp.interpretSlice(instruction)
 	case *ssa.SliceToArrayPointer:
-		return interpreter.interpretSliceToArrayPointer(instruction)
+		return interp.interpretSliceToArrayPointer(instruction)
 	case *ssa.Store:
-		return interpreter.interpretStore(instruction)
+		return interp.interpretStore(instruction)
 	case *ssa.TypeAssert:
-		return interpreter.interpretTypeAssert(instruction)
+		return interp.interpretTypeAssert(instruction)
 	case *ssa.UnOp:
-		return interpreter.interpretUnOp(instruction)
+		return interp.interpretUnOp(instruction)
 	default:
 		return gossa.Errorf("unsupported SSA instruction type %T", instruction.Pos(), instruction)
 	}
 }
 
-func (interpreter interpreter) interpretTerminator(instruction ssa.Instruction) ([]interpreter, error) {
+func (interp interpreter) interpretTerminator(instruction ssa.Instruction) ([]interpreter, error) {
 	switch instruction := instruction.(type) {
 	case *ssa.If:
-		return interpreter.interpretIf(instruction)
+		return interp.interpretIf(instruction)
 	case *ssa.Jump:
-		return interpreter.interpretJump(instruction)
+		return interp.interpretJump(instruction)
 	case *ssa.Panic:
-		return interpreter.interpretPanic(instruction)
+		return interp.interpretPanic(instruction)
 	case *ssa.Return:
-		return interpreter.interpretReturn(instruction)
+		return interp.interpretReturn(instruction)
 	default:
 		return nil, gossa.Errorf("unsupported SSA terminator type %T", instruction.Pos(), instruction)
 	}
 }
 
-func (interpreter interpreter) interpretAlloc(instruction *ssa.Alloc) error {
+func (interp interpreter) interpretAlloc(instruction *ssa.Alloc) error {
 	return gossa.Errorf("Alloc is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretBinOp(instruction *ssa.BinOp) error {
-	return gossa.Errorf("BinOp is not supported", instruction.Pos())
+func (interp interpreter) interpretBinOp(instruction *ssa.BinOp) error {
+	return interp.interpretValue(instruction)
 }
 
-func (interpreter interpreter) interpretCall(instruction *ssa.Call) error {
+func (interp interpreter) interpretCall(instruction *ssa.Call) error {
 	return gossa.Errorf("Call is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretChangeInterface(instruction *ssa.ChangeInterface) error {
+func (interp interpreter) interpretChangeInterface(instruction *ssa.ChangeInterface) error {
 	return gossa.Errorf("ChangeInterface is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretChangeType(instruction *ssa.ChangeType) error {
+func (interp interpreter) interpretChangeType(instruction *ssa.ChangeType) error {
 	return gossa.Errorf("ChangeType is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretConvert(instruction *ssa.Convert) error {
+func (interp interpreter) interpretConvert(instruction *ssa.Convert) error {
 	return gossa.Errorf("Convert is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretDebugRef(instruction *ssa.DebugRef) error {
+func (interp interpreter) interpretDebugRef(instruction *ssa.DebugRef) error {
 	return gossa.Errorf("DebugRef is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretDefer(instruction *ssa.Defer) error {
+func (interp interpreter) interpretDefer(instruction *ssa.Defer) error {
 	return gossa.Errorf("Defer is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretExtract(instruction *ssa.Extract) error {
+func (interp interpreter) interpretExtract(instruction *ssa.Extract) error {
 	return gossa.Errorf("Extract is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretField(instruction *ssa.Field) error {
+func (interp interpreter) interpretField(instruction *ssa.Field) error {
 	return gossa.Errorf("Field is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretFieldAddr(instruction *ssa.FieldAddr) error {
+func (interp interpreter) interpretFieldAddr(instruction *ssa.FieldAddr) error {
 	return gossa.Errorf("FieldAddr is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretGo(instruction *ssa.Go) error {
+func (interp interpreter) interpretGo(instruction *ssa.Go) error {
 	return gossa.Errorf("Go is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretIndex(instruction *ssa.Index) error {
+func (interp interpreter) interpretIndex(instruction *ssa.Index) error {
 	return gossa.Errorf("Index is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretIndexAddr(instruction *ssa.IndexAddr) error {
+func (interp interpreter) interpretIndexAddr(instruction *ssa.IndexAddr) error {
 	return gossa.Errorf("IndexAddr is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretLookup(instruction *ssa.Lookup) error {
+func (interp interpreter) interpretLookup(instruction *ssa.Lookup) error {
 	return gossa.Errorf("Lookup is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMakeChan(instruction *ssa.MakeChan) error {
+func (interp interpreter) interpretMakeChan(instruction *ssa.MakeChan) error {
 	return gossa.Errorf("MakeChan is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMakeClosure(instruction *ssa.MakeClosure) error {
+func (interp interpreter) interpretMakeClosure(instruction *ssa.MakeClosure) error {
 	return gossa.Errorf("MakeClosure is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMakeInterface(instruction *ssa.MakeInterface) error {
+func (interp interpreter) interpretMakeInterface(instruction *ssa.MakeInterface) error {
 	return gossa.Errorf("MakeInterface is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMakeMap(instruction *ssa.MakeMap) error {
+func (interp interpreter) interpretMakeMap(instruction *ssa.MakeMap) error {
 	return gossa.Errorf("MakeMap is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMakeSlice(instruction *ssa.MakeSlice) error {
+func (interp interpreter) interpretMakeSlice(instruction *ssa.MakeSlice) error {
 	return gossa.Errorf("MakeSlice is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMapUpdate(instruction *ssa.MapUpdate) error {
+func (interp interpreter) interpretMapUpdate(instruction *ssa.MapUpdate) error {
 	return gossa.Errorf("MapUpdate is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretMultiConvert(instruction *ssa.MultiConvert) error {
+func (interp interpreter) interpretMultiConvert(instruction *ssa.MultiConvert) error {
 	return gossa.Errorf("MultiConvert is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretNext(instruction *ssa.Next) error {
+func (interp interpreter) interpretNext(instruction *ssa.Next) error {
 	return gossa.Errorf("Next is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretRange(instruction *ssa.Range) error {
+func (interp interpreter) interpretRange(instruction *ssa.Range) error {
 	return gossa.Errorf("Range is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretRunDefers(instruction *ssa.RunDefers) error {
+func (interp interpreter) interpretRunDefers(instruction *ssa.RunDefers) error {
 	return gossa.Errorf("RunDefers is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretSelect(instruction *ssa.Select) error {
+func (interp interpreter) interpretSelect(instruction *ssa.Select) error {
 	return gossa.Errorf("Select is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretSend(instruction *ssa.Send) error {
+func (interp interpreter) interpretSend(instruction *ssa.Send) error {
 	return gossa.Errorf("Send is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretSlice(instruction *ssa.Slice) error {
+func (interp interpreter) interpretSlice(instruction *ssa.Slice) error {
 	return gossa.Errorf("Slice is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretSliceToArrayPointer(instruction *ssa.SliceToArrayPointer) error {
+func (interp interpreter) interpretSliceToArrayPointer(instruction *ssa.SliceToArrayPointer) error {
 	return gossa.Errorf("SliceToArrayPointer is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretStore(instruction *ssa.Store) error {
+func (interp interpreter) interpretStore(instruction *ssa.Store) error {
 	return gossa.Errorf("Store is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretTypeAssert(instruction *ssa.TypeAssert) error {
+func (interp interpreter) interpretTypeAssert(instruction *ssa.TypeAssert) error {
 	return gossa.Errorf("TypeAssert is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretUnOp(instruction *ssa.UnOp) error {
-	return gossa.Errorf("UnOp is not supported", instruction.Pos())
+func (interp interpreter) interpretUnOp(instruction *ssa.UnOp) error {
+	return interp.interpretValue(instruction)
 }
 
-func (interpreter interpreter) interpretIf(instruction *ssa.If) ([]interpreter, error) {
-	return nil, gossa.Errorf("If is not supported", instruction.Pos())
+func (interp interpreter) interpretValue(instruction ssa.Value) error {
+	value, err := interp.translateValue(instruction)
+	if err != nil {
+		return err
+	}
+
+	locals := interp.frame().locals
+	locals[instruction] = value
+
+	return nil
 }
 
-func (interpreter interpreter) interpretJump(instruction *ssa.Jump) ([]interpreter, error) {
+func (interp interpreter) translateValue(instruction ssa.Value) (z3.Value, error) {
+	locals := interp.frame().locals
+
+	value, err := interp.z3.TranslateValue(instruction, locals)
+	if err != nil {
+		return nil, err //nolint:wrapcheck // gosmt already provides a source-aware diagnostic.
+	}
+
+	return value, nil
+}
+
+func (interp interpreter) interpretIf(instruction *ssa.If) ([]interpreter, error) {
+	condV, err := interp.translateValue(instruction.Cond)
+	if err != nil {
+		return nil, err
+	}
+
+	cond, ok := condV.(z3.Bool)
+	if !ok {
+		return nil, gossa.Errorf("expected Bool If condition, got %s", instruction.Pos(), cond.Sort())
+	}
+
+	succs := interp.block.this.Succs
+
+	brThen := interp.clone()
+	brThen.path = brThen.path.And(cond)
+	brThen.block = blockEntry{pred: brThen.block.this, this: succs[0]}
+
+	brElse := interp.clone()
+	brElse.path = brElse.path.And(cond.Not())
+	brElse.block = blockEntry{pred: brElse.block.this, this: succs[1]}
+
+	return []interpreter{brThen, brElse}, nil
+}
+
+func (interp interpreter) interpretJump(instruction *ssa.Jump) ([]interpreter, error) {
 	return nil, gossa.Errorf("Jump is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretPanic(instruction *ssa.Panic) ([]interpreter, error) {
+func (interp interpreter) interpretPanic(instruction *ssa.Panic) ([]interpreter, error) {
 	return nil, gossa.Errorf("Panic is not supported", instruction.Pos())
 }
 
-func (interpreter interpreter) interpretReturn(instruction *ssa.Return) ([]interpreter, error) {
-	return nil, gossa.Errorf("Return is not supported", instruction.Pos())
+func (interp interpreter) interpretReturn(_ *ssa.Return) ([]interpreter, error) {
+	return []interpreter{}, nil
 }

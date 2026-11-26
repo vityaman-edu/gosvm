@@ -38,8 +38,8 @@ func loop(input loopInput) error {
 
 		queue.Remove(element)
 
-		next, err := pred.interpret() //nolint:staticcheck // Related SA4023 report while terminators are stubs.
-		if err != nil {               //nolint:staticcheck // Keep error handling for when a terminator can succeed.
+		next, err := pred.interpret()
+		if err != nil {
 			return err
 		}
 
