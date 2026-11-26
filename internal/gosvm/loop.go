@@ -1,8 +1,7 @@
 package gosvm
 
 import (
-	"container/list"
-
+	"github.com/vityaman-edu/gosvm/internal/gosched"
 	"github.com/vityaman-edu/gosvm/internal/gosmt"
 	"github.com/vityaman-edu/gosvm/internal/gossa"
 )
@@ -15,36 +14,32 @@ type loopInput struct {
 func loop(input loopInput) error {
 	const limit = 128
 
-	start := newInterpreter(interpreterArgs{
-		entry:    input.Function.Entry(),
-		z3:       gosmt.NewZ3(),
-		printSMT: input.PrintSMT,
+	var sched gosched.Scheduler[*Interpreter]
+
+	sched = gosched.NewEisenhowerScheduler(gosched.NewBfsEisenhower[*Interpreter]())
+	sched = gosched.NewLimitedScheduler(limit, sched)
+
+	start := NewInterpreter(InterpreterArgs{
+		Entry:    input.Function.Entry(),
+		Z3:       gosmt.NewZ3(),
+		PrintSMT: input.PrintSMT,
 	})
 
-	queue := list.New()
-	queue.PushBack(start)
+	sched.Submit(&start)
 
-	for range limit {
-		if queue.Len() == 0 {
+	for {
+		pred, ok := sched.Poll()
+		if !ok {
 			break
 		}
 
-		element := queue.Front()
-
-		pred, ok := element.Value.(interpreter)
-		if !ok {
-			panic("interpreter queue contains an unexpected value")
-		}
-
-		queue.Remove(element)
-
-		next, err := pred.interpret()
+		next, err := pred.Interpret()
 		if err != nil {
 			return err
 		}
 
 		for _, interpreter := range next {
-			queue.PushBack(interpreter)
+			sched.Submit(&interpreter)
 		}
 	}
 
