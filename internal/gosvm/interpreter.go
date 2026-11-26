@@ -67,6 +67,8 @@ func (interp interpreter) interpret() ([]interpreter, error) {
 	body := block.Instrs[:last]
 	terminator := block.Instrs[last]
 
+	interp.logf("SSA: enter %s with path %s", block.String(), interp.path.String())
+
 	for _, instr := range body {
 		if value, ok := instr.(ssa.Value); ok {
 			interp.logf("SSA: %s = %s", value.Name(), instr.String())
@@ -364,19 +366,29 @@ func (interp interpreter) interpretIf(instruction *ssa.If) ([]interpreter, error
 		return nil, err
 	}
 
-	cond, ok := condV.(z3.Bool)
-	if !ok {
+	cond, okk := condV.(z3.Bool)
+	if !okk {
 		return nil, gossa.Errorf("expected Bool If condition, got %s", instruction.Pos(), cond.Sort())
 	}
 
 	succs := interp.block.this.Succs
 
 	brThen := interp.clone()
-	brThen.path = brThen.path.And(cond)
+
+	brThen.path, okk = interp.z3.Simplify(brThen.path.And(cond)).(z3.Bool)
+	if !okk {
+		return nil, gossa.Errorf("simplification changed a type", instruction.Pos(), cond.Sort())
+	}
+
 	brThen.block = blockEntry{pred: brThen.block.this, this: succs[0]}
 
 	brElse := interp.clone()
-	brElse.path = brElse.path.And(cond.Not())
+
+	brElse.path, okk = interp.z3.Simplify(brElse.path.And(cond.Not())).(z3.Bool)
+	if !okk {
+		return nil, gossa.Errorf("simplification changed a type", instruction.Pos(), cond.Sort())
+	}
+
 	brElse.block = blockEntry{pred: brElse.block.this, this: succs[1]}
 
 	return []interpreter{brThen, brElse}, nil
