@@ -46,10 +46,10 @@ go build -o ./gosvm ./cmd/gosvm
 
 ```sh
 # Dry run
-./gosvm -function simpleLoop < internal/examples/test_functions.go
+./gosvm -function simpleLoop < internal/examples/hw1/test_functions.go
 
 # See interpretation
-./gosvm -function simpleLoop -print-smt < internal/examples/test_functions.go
+./gosvm -function simpleLoop -print-smt < internal/examples/hw1/test_functions.go
 ```
 
 ## Learning
