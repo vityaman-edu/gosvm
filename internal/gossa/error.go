@@ -6,13 +6,13 @@ import (
 )
 
 type CompactError struct {
-	Pos     token.Pos
 	Message string
+	Pos     token.Pos
 }
 
 type Error struct {
-	Position token.Position
 	Message  string
+	Position token.Position
 }
 
 func (e *CompactError) Error() string {
@@ -21,15 +21,15 @@ func (e *CompactError) Error() string {
 
 func Errorf(format string, p token.Pos, a ...any) *CompactError {
 	return &CompactError{
-		Pos:     p,
 		Message: fmt.Sprintf(format, a...),
+		Pos:     p,
 	}
 }
 
 func (e *CompactError) Expand(f *token.FileSet) *Error {
 	return &Error{
-		Position: f.Position(e.Pos),
 		Message:  e.Message,
+		Position: f.Position(e.Pos),
 	}
 }
 

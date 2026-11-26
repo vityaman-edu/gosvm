@@ -1,6 +1,8 @@
 package gosvm
 
 import (
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/vityaman-edu/gosvm/internal/gossa"
@@ -25,8 +27,8 @@ func Go(input Input) {
 
 	err := goSSA(pkg, input)
 	if err != nil {
-		if x, ok := err.(*gossa.CompactError); ok {
-			err = x.Expand(pkg.FileSet)
+		if compact, ok := errors.AsType[*gossa.CompactError](err); ok {
+			err = compact.Expand(pkg.FileSet)
 		}
 
 		panic(err)
@@ -34,13 +36,13 @@ func Go(input Input) {
 }
 
 func goSSA(pkg gossa.Package, input Input) error {
-	f, err := pkg.Function(input.Function)
+	function, err := pkg.Function(input.Function)
 	if err != nil {
-		return err
+		return fmt.Errorf("look up function %q: %w", input.Function, err)
 	}
 
 	err = loop(loopInput{
-		Function: f,
+		Function: function,
 		PrintSMT: input.PrintSMT,
 	})
 	if err != nil {

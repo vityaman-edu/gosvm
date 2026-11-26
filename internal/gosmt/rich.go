@@ -2,6 +2,6 @@ package gosmt
 
 import "github.com/ebukreev/go-z3/z3"
 
-func (z *Z3) Bool(b bool) z3.Value {
+func (z *Z3) Bool(b bool) z3.Bool {
 	return z.ctx.FromBool(b)
 }

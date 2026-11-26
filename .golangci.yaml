@@ -19,8 +19,17 @@ linters:
     errcheck:
       check-type-assertions: true
       check-blank: true
+    exhaustive:
+      default-signifies-exhaustive: true
     govet:
       enable-all: true
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - '^github\.com/ebukreev/go-z3/z3\.Value$'
     staticcheck:
       checks: ['all', '-ST1000']
     revive:

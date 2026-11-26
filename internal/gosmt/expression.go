@@ -10,78 +10,79 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-func (z *Z3) TranslateValue(v ssa.Value, s Symbols) (z3.Value, error) {
-	if value, ok := s[v]; ok {
-		return value, nil
+//nolint:cyclop,gocyclo,funlen // Each SSA value type dispatches to its own handler.
+func (z *Z3) TranslateValue(value ssa.Value, symbols Symbols) (z3.Value, error) {
+	if cached, ok := symbols[value]; ok {
+		return cached, nil
 	}
 
-	switch v := v.(type) {
+	switch value := value.(type) {
 	case *ssa.Alloc:
-		return z.translateAlloc(v, s)
+		return z.translateAlloc(value, symbols)
 	case *ssa.BinOp:
-		return z.translateBinOp(v, s)
+		return z.translateBinOp(value, symbols)
 	case *ssa.Builtin:
-		return z.translateBuiltin(v, s)
+		return z.translateBuiltin(value, symbols)
 	case *ssa.Call:
-		return z.translateCall(v, s)
+		return z.translateCall(value, symbols)
 	case *ssa.ChangeInterface:
-		return z.translateChangeInterface(v, s)
+		return z.translateChangeInterface(value, symbols)
 	case *ssa.ChangeType:
-		return z.translateChangeType(v, s)
+		return z.translateChangeType(value, symbols)
 	case *ssa.Const:
-		return z.translateConst(v, s)
+		return z.translateConst(value, symbols)
 	case *ssa.Convert:
-		return z.translateConvert(v, s)
+		return z.translateConvert(value, symbols)
 	case *ssa.Extract:
-		return z.translateExtract(v, s)
+		return z.translateExtract(value, symbols)
 	case *ssa.Field:
-		return z.translateField(v, s)
+		return z.translateField(value, symbols)
 	case *ssa.FieldAddr:
-		return z.translateFieldAddr(v, s)
+		return z.translateFieldAddr(value, symbols)
 	case *ssa.FreeVar:
-		return z.translateFreeVar(v, s)
+		return z.translateFreeVar(value, symbols)
 	case *ssa.Function:
-		return z.translateFunction(v, s)
+		return z.translateFunction(value, symbols)
 	case *ssa.Global:
-		return z.translateGlobal(v, s)
+		return z.translateGlobal(value, symbols)
 	case *ssa.Index:
-		return z.translateIndex(v, s)
+		return z.translateIndex(value, symbols)
 	case *ssa.IndexAddr:
-		return z.translateIndexAddr(v, s)
+		return z.translateIndexAddr(value, symbols)
 	case *ssa.Lookup:
-		return z.translateLookup(v, s)
+		return z.translateLookup(value, symbols)
 	case *ssa.MakeChan:
-		return z.translateMakeChan(v, s)
+		return z.translateMakeChan(value, symbols)
 	case *ssa.MakeClosure:
-		return z.translateMakeClosure(v, s)
+		return z.translateMakeClosure(value, symbols)
 	case *ssa.MakeInterface:
-		return z.translateMakeInterface(v, s)
+		return z.translateMakeInterface(value, symbols)
 	case *ssa.MakeMap:
-		return z.translateMakeMap(v, s)
+		return z.translateMakeMap(value, symbols)
 	case *ssa.MakeSlice:
-		return z.translateMakeSlice(v, s)
+		return z.translateMakeSlice(value, symbols)
 	case *ssa.MultiConvert:
-		return z.translateMultiConvert(v, s)
+		return z.translateMultiConvert(value, symbols)
 	case *ssa.Next:
-		return z.translateNext(v, s)
+		return z.translateNext(value, symbols)
 	case *ssa.Parameter:
-		return z.translateParameter(v, s)
+		return z.translateParameter(value, symbols)
 	case *ssa.Phi:
-		return z.translatePhi(v, s)
+		return z.translatePhi(value, symbols)
 	case *ssa.Range:
-		return z.translateRange(v, s)
+		return z.translateRange(value, symbols)
 	case *ssa.Select:
-		return z.translateSelect(v, s)
+		return z.translateSelect(value, symbols)
 	case *ssa.Slice:
-		return z.translateSlice(v, s)
+		return z.translateSlice(value, symbols)
 	case *ssa.SliceToArrayPointer:
-		return z.translateSliceToArrayPointer(v, s)
+		return z.translateSliceToArrayPointer(value, symbols)
 	case *ssa.TypeAssert:
-		return z.translateTypeAssert(v, s)
+		return z.translateTypeAssert(value, symbols)
 	case *ssa.UnOp:
-		return z.translateUnOp(v, s)
+		return z.translateUnOp(value, symbols)
 	default:
-		return nil, gossa.Errorf("unsupported SSA value type %T", v.Pos(), v)
+		return nil, gossa.Errorf("unsupported SSA value type %T", value.Pos(), value)
 	}
 }
 
@@ -89,111 +90,133 @@ func (z *Z3) translateAlloc(v *ssa.Alloc, _ Symbols) (z3.Value, error) {
 	return nil, gossa.Errorf("Alloc is not supported", v.Pos())
 }
 
-func (z *Z3) translateBinOp(v *ssa.BinOp, s Symbols) (z3.Value, error) {
-	x, err := z.TranslateValue(v.X, s)
+func (z *Z3) translateBinOp(operation *ssa.BinOp, symbols Symbols) (z3.Value, error) {
+	lhs, err := z.TranslateValue(operation.X, symbols)
 	if err != nil {
 		return nil, err
 	}
 
-	y, err := z.TranslateValue(v.Y, s)
+	rhs, err := z.TranslateValue(operation.Y, symbols)
 	if err != nil {
 		return nil, err
 	}
 
-	switch v.Op {
-	case token.ADD:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.Add(y), nil
+	var result z3.Value
 
-	case token.SUB:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.Sub(y), nil
-
-	case token.MUL:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.Mul(y), nil
-
-	case token.QUO:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.Div(y), nil
-
-	case token.REM:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.Mod(y), nil
-
-	case token.AND:
-		x := x.(z3.Bool)
-		y := y.(z3.Bool)
-		return x.And(y), nil
-
-	case token.OR:
-		x := x.(z3.Bool)
-		y := y.(z3.Bool)
-		return x.Or(y), nil
-
-	case token.XOR:
-		return nil, gossa.Errorf("BinOp %s is not supported", v.Pos(), v.Op)
-
-	case token.SHL:
-		return nil, gossa.Errorf("BinOp %s is not supported", v.Pos(), v.Op)
-
-	case token.SHR:
-		return nil, gossa.Errorf("BinOp %s is not supported", v.Pos(), v.Op)
-
-	case token.AND_NOT:
-		return nil, gossa.Errorf("BinOp %s is not supported", v.Pos(), v.Op)
-
-	case token.EQL:
-		switch x := x.(type) {
-		case z3.Int:
-			y := y.(z3.Int)
-			return x.Eq(y), nil
-		case z3.Bool:
-			y := y.(z3.Bool)
-			return x.Eq(y), nil
-		default:
-			return nil, gossa.Errorf("BinOp %s unexpected x type", v.Pos(), v.Op)
-		}
-
-	case token.NEQ:
-		switch x := x.(type) {
-		case z3.Int:
-			y := y.(z3.Int)
-			return x.NE(y), nil
-		case z3.Bool:
-			y := y.(z3.Bool)
-			return x.NE(y), nil
-		default:
-			return nil, gossa.Errorf("BinOp %s unexpected x type", v.Pos(), v.Op)
-		}
-
-	case token.LSS:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.LT(y), nil
-
-	case token.LEQ:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.LE(y), nil
-
-	case token.GTR:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.GT(y), nil
-
-	case token.GEQ:
-		x := x.(z3.Int)
-		y := y.(z3.Int)
-		return x.GE(y), nil
-
+	switch operation.Op {
+	case token.ADD, token.SUB, token.MUL, token.QUO, token.REM:
+		result, err = applyIntArithmetic(operation, lhs, rhs)
+	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
+		result, err = applyComparison(operation, lhs, rhs)
+	case token.AND, token.OR:
+		result, err = applyBoolBinOp(operation, lhs, rhs)
+	case token.XOR, token.SHL, token.SHR, token.AND_NOT:
+		return nil, gossa.Errorf("BinOp %s is not supported", operation.Pos(), operation.Op)
 	default:
-		return nil, gossa.Errorf("unknown BinOp %s", v.Pos(), v.Op)
+		return nil, gossa.Errorf("unknown BinOp %s", operation.Pos(), operation.Op)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+type intOperands struct {
+	lhs, rhs z3.Int
+}
+
+func checkedIntOperands(operation *ssa.BinOp, lhs, rhs z3.Value) (intOperands, error) {
+	intLHS, lhsOK := lhs.(z3.Int)
+	intRHS, rhsOK := rhs.(z3.Int)
+
+	if !lhsOK || !rhsOK {
+		return intOperands{}, gossa.Errorf(
+			"BinOp %s expects integer operands, got %T and %T", operation.Pos(), operation.Op, lhs, rhs,
+		)
+	}
+
+	return intOperands{lhs: intLHS, rhs: intRHS}, nil
+}
+
+func applyIntArithmetic(operation *ssa.BinOp, lhs, rhs z3.Value) (z3.Int, error) {
+	operands, err := checkedIntOperands(operation, lhs, rhs)
+	if err != nil {
+		return z3.Int{}, err
+	}
+
+	switch operation.Op {
+	case token.ADD:
+		return operands.lhs.Add(operands.rhs), nil
+	case token.SUB:
+		return operands.lhs.Sub(operands.rhs), nil
+	case token.MUL:
+		return operands.lhs.Mul(operands.rhs), nil
+	case token.QUO:
+		return operands.lhs.Div(operands.rhs), nil
+	case token.REM:
+		return operands.lhs.Mod(operands.rhs), nil
+	default:
+		panic("unexpected integer arithmetic operator")
+	}
+}
+
+func applyComparison(operation *ssa.BinOp, lhs, rhs z3.Value) (z3.Bool, error) {
+	if operation.Op == token.EQL || operation.Op == token.NEQ {
+		if _, ok := lhs.(z3.Bool); ok {
+			return applyBoolBinOp(operation, lhs, rhs)
+		}
+	}
+
+	return applyIntComparison(operation, lhs, rhs)
+}
+
+func applyIntComparison(operation *ssa.BinOp, lhs, rhs z3.Value) (z3.Bool, error) {
+	operands, err := checkedIntOperands(operation, lhs, rhs)
+	if err != nil {
+		return z3.Bool{}, err
+	}
+
+	switch operation.Op {
+	case token.EQL:
+		return operands.lhs.Eq(operands.rhs), nil
+	case token.NEQ:
+		return operands.lhs.NE(operands.rhs), nil
+	case token.LSS:
+		return operands.lhs.LT(operands.rhs), nil
+	case token.LEQ:
+		return operands.lhs.LE(operands.rhs), nil
+	case token.GTR:
+		return operands.lhs.GT(operands.rhs), nil
+	case token.GEQ:
+		return operands.lhs.GE(operands.rhs), nil
+	default:
+		panic("unexpected integer comparison operator")
+	}
+}
+
+func applyBoolBinOp(operation *ssa.BinOp, lhs, rhs z3.Value) (z3.Bool, error) {
+	boolLHS, lhsOK := lhs.(z3.Bool)
+	boolRHS, rhsOK := rhs.(z3.Bool)
+
+	if !lhsOK || !rhsOK {
+		return z3.Bool{}, gossa.Errorf(
+			"BinOp %s expects boolean operands, got %T and %T", operation.Pos(), operation.Op, lhs, rhs,
+		)
+	}
+
+	switch operation.Op {
+	case token.AND:
+		return boolLHS.And(boolRHS), nil
+	case token.OR:
+		return boolLHS.Or(boolRHS), nil
+	case token.EQL:
+		return boolLHS.Eq(boolRHS), nil
+	case token.NEQ:
+		return boolLHS.NE(boolRHS), nil
+	default:
+		panic("unexpected boolean operator")
 	}
 }
 
@@ -213,34 +236,35 @@ func (z *Z3) translateChangeType(v *ssa.ChangeType, _ Symbols) (z3.Value, error)
 	return nil, gossa.Errorf("ChangeType is not supported", v.Pos())
 }
 
-func (z *Z3) translateConst(v *ssa.Const, _ Symbols) (z3.Value, error) {
-	switch v.Value.Kind() {
+func (z *Z3) translateConst(literal *ssa.Const, _ Symbols) (z3.Value, error) {
+	switch literal.Value.Kind() {
 	case constant.Unknown:
-		return nil, gossa.Errorf("unknown constant kind", v.Pos())
+		return nil, gossa.Errorf("unknown constant kind", literal.Pos())
 
 	case constant.Bool:
-		x := constant.BoolVal(v.Value)
+		x := constant.BoolVal(literal.Value)
+
 		return z.ctx.FromBool(x), nil
 
 	case constant.String:
-		return nil, gossa.Errorf("String constant is not supported", v.Pos())
+		return nil, gossa.Errorf("String constant is not supported", literal.Pos())
 
 	case constant.Int:
-		x, ok := constant.Int64Val(v.Value)
+		x, ok := constant.Int64Val(literal.Value)
 		if !ok {
-			return nil, gossa.Errorf("Too large Int constant", v.Pos())
+			return nil, gossa.Errorf("Too large Int constant", literal.Pos())
 		}
 
 		return z.ctx.FromInt(x, z.ctx.IntSort()), nil
 
 	case constant.Float:
-		return nil, gossa.Errorf("Float constant is not supported", v.Pos())
+		return nil, gossa.Errorf("Float constant is not supported", literal.Pos())
 
 	case constant.Complex:
-		return nil, gossa.Errorf("Complex constant is not supported", v.Pos())
+		return nil, gossa.Errorf("Complex constant is not supported", literal.Pos())
 
 	default:
-		return nil, gossa.Errorf("unsupported constant kind %d", v.Pos(), v.Value.Kind())
+		return nil, gossa.Errorf("unsupported constant kind %d", literal.Pos(), literal.Value.Kind())
 	}
 }
 
@@ -312,24 +336,26 @@ func (z *Z3) translateNext(v *ssa.Next, _ Symbols) (z3.Value, error) {
 	return nil, gossa.Errorf("Next is not supported", v.Pos())
 }
 
-func (z *Z3) translateParameter(v *ssa.Parameter, s Symbols) (z3.Value, error) {
-	basic, ok := v.Type().Underlying().(*types.Basic)
+func (z *Z3) translateParameter(parameter *ssa.Parameter, symbols Symbols) (z3.Value, error) {
+	basic, ok := parameter.Type().Underlying().(*types.Basic)
 	if !ok {
-		return nil, gossa.Errorf("Parameter type is not supported", v.Pos())
+		return nil, gossa.Errorf("Parameter type is not supported", parameter.Pos())
 	}
 
 	var sort z3.Sort
+
 	switch basic.Kind() {
 	case types.Int:
 		sort = z.ctx.IntSort()
 	case types.Bool:
 		sort = z.ctx.BoolSort()
 	default:
-		return nil, gossa.Errorf("Parameter type is not supported", v.Pos())
+		return nil, gossa.Errorf("Parameter type is not supported", parameter.Pos())
 	}
 
-	x := z.ctx.Const(v.Name(), sort)
-	s[v] = x
+	x := z.ctx.Const(parameter.Name(), sort)
+	symbols[parameter] = x
+
 	return x, nil
 }
 
@@ -357,26 +383,34 @@ func (z *Z3) translateTypeAssert(v *ssa.TypeAssert, _ Symbols) (z3.Value, error)
 	return nil, gossa.Errorf("TypeAssert is not supported", v.Pos())
 }
 
-func (z *Z3) translateUnOp(v *ssa.UnOp, s Symbols) (z3.Value, error) {
-	x, err := z.TranslateValue(v.X, s)
+func (z *Z3) translateUnOp(operation *ssa.UnOp, symbols Symbols) (z3.Value, error) {
+	operand, err := z.TranslateValue(operation.X, symbols)
 	if err != nil {
 		return nil, err
 	}
 
-	switch v.Op {
+	switch operation.Op {
 	case token.NOT:
-		x := x.(z3.Bool)
-		return x.Not(), nil
+		boolean, ok := operand.(z3.Bool)
+		if !ok {
+			return nil, gossa.Errorf("UnOp %s expects a boolean operand, got %T", operation.Pos(), operation.Op, operand)
+		}
+
+		return boolean.Not(), nil
 	case token.SUB:
-		x := x.(z3.Int)
-		return x.Neg(), nil
+		integer, ok := operand.(z3.Int)
+		if !ok {
+			return nil, gossa.Errorf("UnOp %s expects an integer operand, got %T", operation.Pos(), operation.Op, operand)
+		}
+
+		return integer.Neg(), nil
 	case token.ARROW:
-		return nil, gossa.Errorf("ARROW UnOp is not supported", v.Pos())
+		return nil, gossa.Errorf("ARROW UnOp is not supported", operation.Pos())
 	case token.MUL:
-		return nil, gossa.Errorf("MUL UnOp is not supported", v.Pos())
+		return nil, gossa.Errorf("MUL UnOp is not supported", operation.Pos())
 	case token.XOR:
-		return nil, gossa.Errorf("XOR UnOp is not supported", v.Pos())
+		return nil, gossa.Errorf("XOR UnOp is not supported", operation.Pos())
 	default:
-		return nil, gossa.Errorf("unknown UnOp %s", v.Pos(), v.Op)
+		return nil, gossa.Errorf("unknown UnOp %s", operation.Pos(), operation.Op)
 	}
 }

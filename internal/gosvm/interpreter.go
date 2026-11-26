@@ -1,6 +1,7 @@
 package gosvm
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/ebukreev/go-z3/z3"
@@ -11,9 +12,9 @@ import (
 
 type interpreter struct {
 	entry    blockEntry
-	stack    []frame
 	path     z3.Value
 	z3       *gosmt.Z3
+	stack    []frame
 	printSMT bool
 }
 
@@ -35,9 +36,9 @@ type frame struct {
 func newInterpreter(args interpreterArgs) interpreter {
 	return interpreter{
 		entry:    blockEntry{pred: nil, next: args.entry},
-		stack:    []frame{{locals: make(map[ssa.Value]z3.Value)}},
 		path:     args.z3.Bool(true),
 		z3:       args.z3,
+		stack:    []frame{{locals: make(map[ssa.Value]z3.Value)}},
 		printSMT: args.printSMT,
 	}
 }
@@ -81,12 +82,11 @@ func (interpreter interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int)
 	target := instruction
 	source := instruction.Edges[edgeIndex]
 
-	z3 := interpreter.z3
 	frame := interpreter.frame()
 
-	value, err := z3.TranslateValue(source, frame.locals)
+	value, err := interpreter.z3.TranslateValue(source, frame.locals)
 	if err != nil {
-		return err
+		return fmt.Errorf("translate phi operand: %w", err)
 	}
 
 	frame.locals[target] = value
@@ -94,6 +94,7 @@ func (interpreter interpreter) interpretPhi(instruction *ssa.Phi, edgeIndex int)
 	return nil
 }
 
+//nolint:cyclop,gocyclo,funlen // Each SSA instruction type dispatches to its own handler.
 func (interpreter interpreter) interpretBody(instruction ssa.Instruction) error {
 	switch instruction := instruction.(type) {
 	case *ssa.Alloc:
