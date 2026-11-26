@@ -68,6 +68,12 @@ func (interp interpreter) interpret() ([]interpreter, error) {
 	terminator := block.Instrs[last]
 
 	for _, instr := range body {
+		if value, ok := instr.(ssa.Value); ok {
+			interp.logf("SSA: %s = %s", value.Name(), instr.String())
+		} else {
+			interp.logf("SSA: %s", instr.String())
+		}
+
 		switch instr := instr.(type) {
 		case *ssa.Phi:
 			if edgeIndex == -1 {
@@ -179,6 +185,8 @@ func (interp interpreter) interpretBody(instruction ssa.Instruction) error {
 }
 
 func (interp interpreter) interpretTerminator(instruction ssa.Instruction) ([]interpreter, error) {
+	interp.logf("SSA: %s", instruction.String())
+
 	switch instruction := instruction.(type) {
 	case *ssa.If:
 		return interp.interpretIf(instruction)
@@ -330,6 +338,8 @@ func (interp interpreter) interpretValue(instruction ssa.Value) error {
 	locals := interp.frame().locals
 	locals[instruction] = value
 
+	interp.logf("SMT: %s <- %s", instruction.Name(), value.String())
+
 	return nil
 }
 
@@ -378,4 +388,12 @@ func (interp interpreter) interpretPanic(instruction *ssa.Panic) ([]interpreter,
 
 func (interp interpreter) interpretReturn(_ *ssa.Return) ([]interpreter, error) {
 	return []interpreter{}, nil
+}
+
+func (interp interpreter) logf(format string, a ...any) {
+	if !interp.printSMT {
+		return
+	}
+
+	gossa.Logf(interp.block.this.String()+": "+format, a...)
 }
