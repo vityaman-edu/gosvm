@@ -26,6 +26,7 @@
               actionlint
               bash
               deadnix
+              gh
               go
               gofumpt
               golangci-lint
@@ -38,6 +39,7 @@
               nixd
               nixfmt
               pre-commit
+              python3
               shellcheck
               shfmt
               statix
